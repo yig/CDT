@@ -158,6 +158,8 @@ public:
   const size_t input_nv; // number of input vertices
   const uint32_t input_nt; // number of input triangles
   const uint32_t* input_tv; // input triangles (linearized vertex IDs)
+  const uint32_t input_ne; // number of input triangles
+  const uint32_t* input_ev; // input triangles (linearized vertex IDs)
 
   TetMesh& delmesh; // Delaunay tetrahedrization
   std::vector<PLCedge> edges; // edges of the PLC
@@ -172,8 +174,18 @@ public:
   bool is_polyhedron; // TRUE if all the PLC edges have an even number of incident faces
 
 
-  PLCx(TetMesh& m, const uint32_t* _input_tv, const uint32_t _input_nt) :
-      input_nv(m.vertices.size()), input_nt(_input_nt), input_tv(_input_tv), delmesh(m), is_polyhedron(false)
+  PLCx(
+      TetMesh& m, 
+      const uint32_t* _input_tv, 
+      const uint32_t _input_nt,
+      const uint32_t* _input_ev = NULL,
+      const uint32_t _input_ne = 0) :
+      input_nv(m.vertices.size()), 
+      input_nt(_input_nt), 
+      input_tv(_input_tv), 
+      input_ne(_input_ne),
+      input_ev(_input_ev),
+      delmesh(m), is_polyhedron(false)
   { initialize(); };
 
   void initialize();

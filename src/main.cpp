@@ -60,7 +60,12 @@ TetMesh* createSteinerCDT(inputPLC& plc, const char *options) {
 	if (log) logTimeChunk();
 
 	// Build a structured PLC linked to the Delaunay tetrahedrization
-	PLCx Steiner_plc(*tin, plc.triangle_vertices.data(), plc.numTriangles());
+	PLCx Steiner_plc(
+          *tin, 
+          plc.triangle_vertices.data(), 
+          plc.numTriangles(),
+          plc.edge_vertices.data(),
+          plc.numEdges());
 
 	// Recover segments by inserting Steiner points in both the PLC and the tetrahedrization
 	Steiner_plc.segmentRecovery_HSi(!verbose);

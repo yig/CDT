@@ -1,5 +1,7 @@
 #include <iostream>
 #include <fstream>
+// For ip_error
+#include "numerics.h"
 
 using namespace std;
 
@@ -23,7 +25,14 @@ public:
     vBlock(uint32_t b, uint32_t e, uint32_t d) : begin(b), end(e), dir_split(d) {}
 };
 
-void reorderVertices(double* coordinates, uint32_t numVertices, uint32_t* triVertices, uint32_t numTriangles) {
+void reorderVertices(
+  double* coordinates, 
+  uint32_t numVertices, 
+  uint32_t* triVertices, 
+  uint32_t numTriangles,
+  uint32_t* edgeVertices,
+  uint32_t numEdges
+  ) {
     std::vector<reVertex> revertices; 
     revertices.reserve(numVertices);
     for (uint32_t i = 0; i < numVertices; i++) revertices.push_back(reVertex(coordinates + (i * 3), i));
@@ -48,6 +57,10 @@ void reorderVertices(double* coordinates, uint32_t numVertices, uint32_t* triVer
     for (uint32_t i = 0; i < numVertices; i++) new_index[revertices[i].index] = i;
 
     for (uint32_t i = 0; i < numTriangles * 3; i++) triVertices[i] = new_index[triVertices[i]];
+    for (uint32_t i = 0; i < numEdges * 2; i++){
+      edgeVertices[i] = new_index[edgeVertices[i]];
+    }
+
     for (uint32_t i = 0; i < numVertices; i++) {
         const double* pt = revertices[i].c;
         coordinates[i * 3] = pt[0];
@@ -67,6 +80,66 @@ bool misAlignment(const double* p, const double* q, const double* r)
     return orient2d(p[0], p[1], q[0], q[1], r[0], r[1]) ||
         orient2d(p[1], p[2], q[1], q[2], r[1], r[2]) ||
         orient2d(p[0], p[2], q[0], q[2], r[0], r[2]);
+}
+
+void read_OBJ_file(
+    const char* filename,
+    double **vertices_p, uint32_t *npts,
+    uint32_t **edge_vertices_p, uint32_t *nedge, 
+    uint32_t **tri_vertices_p, uint32_t *ntri, 
+    bool verbose) 
+{
+  FILE* file = fopen(filename, "r");
+  if (file == NULL)
+      ip_error("read_OFF_file: FATAL ERROR "
+          "cannot open input file.\n");
+  std::vector<double> vertices;
+  std::vector<uint32_t> edges;
+  std::vector<uint32_t> faces;
+  char line[1024];
+  while (fgets(line, 1024, file)) {
+      if (line[0] == 'v' && line[1] == ' ') {
+          double x, y, z;
+          sscanf(line, "v %lf %lf %lf", &x, &y, &z);
+          vertices.push_back(x);
+          vertices.push_back(y);
+          vertices.push_back(z);
+      }
+      else if (line[0] == 'f' && line[1] == ' ') {
+          uint32_t v1, v2, v3;
+          sscanf(line, "f %u %u %u", &v1, &v2, &v3);
+          faces.push_back(v1 - 1);
+          faces.push_back(v2 - 1);
+          faces.push_back(v3 - 1);
+      }else if (line[0] == 'l' && line[1] == ' ') {
+          uint32_t v1, v2;
+          sscanf(line, "l %u %u", &v1, &v2);
+          edges.push_back(v1 - 1);
+          edges.push_back(v2 - 1);
+      }
+  }
+
+  if (verbose) 
+  {
+    printf("read_OBJ_file\n");
+    printf("  #vertices: %lu\n", vertices.size() / 3);
+    printf("  #edges: %lu\n", edges.size() / 2);
+    printf("  #faces: %lu\n", faces.size() / 3);
+  }
+
+  // Copy
+  *vertices_p = (double*)malloc(vertices.size() * sizeof(double));
+  std::copy(vertices.begin(), vertices.end(), *vertices_p);
+  npts[0] = vertices.size() / 3;
+
+  *edge_vertices_p = (uint32_t*)malloc(edges.size() * sizeof(uint32_t));
+  std::copy(edges.begin(), edges.end(), *edge_vertices_p);
+  nedge[0] = edges.size() / 2;
+
+  *tri_vertices_p = (uint32_t*)malloc(faces.size() * sizeof(uint32_t));
+  std::copy(faces.begin(), faces.end(), *tri_vertices_p);
+  ntri[0] = faces.size() / 3;
+
 }
 
 void read_OFF_file(const char* filename,
@@ -181,9 +254,20 @@ void remove_duplicated_points(input_vertex_t** vertices_p, uint32_t* npts,
 
 /// //////////////////////////////////////////////////////////////////////////////////////////
 
-void read_nodes_and_constraints(double* coords_A, uint32_t npts_A, uint32_t* tri_idx_A, uint32_t ntri_A,
-    input_vertex_t** vertices_p, uint32_t* npts,
-    uint32_t** tri_vertices_p, uint32_t* ntri, bool verbose) {
+void read_nodes_and_constraints(
+  double* coords_A, 
+  uint32_t npts_A, 
+  uint32_t* tri_idx_A, 
+  uint32_t ntri_A,
+  uint32_t* edge_idx_A, 
+  uint32_t nedge_A,
+  input_vertex_t** vertices_p, 
+  uint32_t* npts,
+  uint32_t** tri_vertices_p, 
+  uint32_t* ntri, 
+  uint32_t** edge_vertices_p, 
+  uint32_t* nedge, 
+  bool verbose) {
 
     // Reading points coordinates.
     *npts = npts_A;
@@ -192,6 +276,7 @@ void read_nodes_and_constraints(double* coords_A, uint32_t npts_A, uint32_t* tri
     uint32_t* diff = (uint32_t*)calloc(*npts, sizeof(uint32_t));
     uint32_t* map = (uint32_t*)malloc(*npts * sizeof(uint32_t));
     *tri_vertices_p = (uint32_t*)malloc(sizeof(uint32_t) * 3 * (*ntri));
+
 
     for (uint32_t i = 0; i < (*npts); i++) {
         tmp[i].coord[0] = coords_A[i * 3];
@@ -204,6 +289,16 @@ void read_nodes_and_constraints(double* coords_A, uint32_t npts_A, uint32_t* tri
     if (verbose) std::cout << "Using " << *npts << " unique vertices\n";
 
     free(tmp);
+
+    *nedge = nedge_A;
+    *edge_vertices_p = (uint32_t*)malloc(sizeof(uint32_t) * 2 * (*nedge));
+    for(uint32_t j = 0;j<(*nedge);j++)
+    {
+      const uint32_t i1 = edge_idx_A[2*j];
+      const uint32_t i2 = edge_idx_A[2*j+1];
+      (*edge_vertices_p)[2*j]   = map[i1] - diff[map[i1]];
+      (*edge_vertices_p)[2*j+1] = map[i2] - diff[map[i2]];
+    }
 
     for (uint32_t i = 0, j = 0; i < (*ntri); j++) {
 
@@ -244,10 +339,12 @@ class inputPLC {
 public:
     std::vector<double> coordinates; // x1,y1,z1,x2,y2,z2, ..., xn,yn,zn
     std::vector<uint32_t> triangle_vertices; // t1_v1, t1_v2, t1_v3, t2_v1, t2_v2, ...
+    std::vector<uint32_t> edge_vertices; // e1_v1, e1_v2, e2_v1, e2_v2, ...
     const char* input_file_name;
 
     uint32_t numVertices() const { return (uint32_t)coordinates.size() / 3; }
     uint32_t numTriangles() const { return (uint32_t)triangle_vertices.size() / 3; }
+    uint32_t numEdges() const { return (uint32_t)edge_vertices.size() / 2; }
 
     inputPLC() {}
 
@@ -258,17 +355,31 @@ public:
 
         // Read OFF file (only triangles supported)
         uint32_t npts, ntri;
+        uint32_t nedge = 0;
         double* vertex_p;
         uint32_t* tri_vertices_p;
-        read_OFF_file(filename, &vertex_p, &npts, &tri_vertices_p, &ntri, verbose);
+        uint32_t* edge_vertices_p = nullptr;
+
+        // if filename ends in .obj
+        if (filename[strlen(filename) - 1] == 'j' && filename[strlen(filename) - 2] == 'b' && filename[strlen(filename) - 3] == 'o') 
+        {
+          read_OBJ_file(filename, &vertex_p, &npts, &edge_vertices_p, &nedge, &tri_vertices_p, &ntri, verbose);
+        } else
+        {
+          read_OFF_file(filename, &vertex_p, &npts, &tri_vertices_p, &ntri, verbose);
+        }
+
         if (verbose) printf("File read\n");
         if (npts == 0) ip_error("Input file has no vertices\n");
         if (ntri == 0) ip_error("Input file has no triangles\n");
 
-        postProcess(vertex_p, npts, tri_vertices_p, ntri, verbose);
+        postProcess(vertex_p, npts, tri_vertices_p, ntri, edge_vertices_p, nedge, verbose);
+
 
         free(vertex_p);
         free(tri_vertices_p);
+        free(edge_vertices_p);
+
 
         return true;
     }
@@ -276,18 +387,41 @@ public:
     bool initFromVectors(double* vertex_p, uint32_t npts, uint32_t* tri_vertices_p, uint32_t ntri, bool verbose) {
         input_file_name = "";
 
-        postProcess(vertex_p, npts, tri_vertices_p, ntri, verbose);
+        postProcess(vertex_p, npts, tri_vertices_p, ntri, nullptr, 0, verbose);
 
         return true;
     }
 
-    void postProcess(double* vertices_p, uint32_t npts, uint32_t* tri_vertices_p, uint32_t ntri, bool verbose) {
+    void postProcess(
+      double* vertices_p, 
+      uint32_t npts, 
+      uint32_t* tri_vertices_p, 
+      uint32_t ntri, 
+      uint32_t* edge_vertices_p,
+      uint32_t nedge,
+      bool verbose) {
         // Convert OFF to valid set of vertices (no duplications) and constraints (no degeneracies)
         uint32_t* valid_tri_vertices_p;
         uint32_t num_valid_tris;
+        uint32_t* valid_edge_vertices_p;
+        uint32_t num_valid_edges;
         input_vertex_t* tmp_vertices; // These have floating point coordinates
         uint32_t num_vertices;
-        read_nodes_and_constraints(vertices_p, npts, tri_vertices_p, ntri, &tmp_vertices, &num_vertices, &valid_tri_vertices_p, &num_valid_tris, verbose);
+        read_nodes_and_constraints(
+          vertices_p, 
+          npts, 
+          tri_vertices_p, 
+          ntri, 
+          edge_vertices_p,
+          nedge,
+          &tmp_vertices, 
+          &num_vertices, 
+          &valid_tri_vertices_p, 
+          &num_valid_tris, 
+          &valid_edge_vertices_p,
+          &num_valid_edges,
+          verbose);
+
         if (verbose) printf("Valid input built\n");
         if (num_vertices == 0) ip_error("Input file has no valid vertices\n");
         if (num_valid_tris == 0) ip_error("Input file has no valid triangles\n");
@@ -303,8 +437,18 @@ public:
 
         free(tmp_vertices);
         free(valid_tri_vertices_p);
+       
+        // For now just copy again and assume there are no edges that duplicate
+        // edges in each other or in the triangles.
+        edge_vertices.assign(valid_edge_vertices_p, valid_edge_vertices_p + (num_valid_edges * 2));
 
-        reorderVertices(coordinates.data(), (uint32_t)coordinates.size() / 3, triangle_vertices.data(), (uint32_t)triangle_vertices.size() / 3);
+        reorderVertices(
+          coordinates.data(), 
+          (uint32_t)coordinates.size() / 3, 
+          triangle_vertices.data(), 
+          (uint32_t)triangle_vertices.size() / 3,
+          edge_vertices.data(),
+          (uint32_t)edge_vertices.size() / 2);
     }
 
     // Add eight vertices to enclose the input in a box

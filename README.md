@@ -1,3 +1,15 @@
+This fork allows inputting a .obj file with
+
+```
+l [v1] [v2]
+```
+
+line-segment indices in addition to faces (basic `f [v1] [v2] [v3]`). There's no
+attempt to check that line segments are valid and non-redundant. They shouldn't
+be degenerate, copies of each other or copies of edges in the input triangles.
+
+-------------------------------------------------------------
+
 # CDT - Constrained Delaunay Tetrahedrization made robust and practical
 This code implements an algorithm to calculate a Constrained Delaunay Tetrahedrization (CDT) of an input PLC represented by on OFF file.
 Steiner points are possibly added to make the input admit a CDT.

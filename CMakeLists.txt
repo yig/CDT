@@ -48,7 +48,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	if(NOT LGPL)
 		target_compile_options(${PROJECT_NAME} PUBLIC "/D USE_MAROTS_METHOD")
 	endif()
-else()
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 # set standard optimization level
 	target_compile_options(${PROJECT_NAME} PUBLIC -O2)
 # grant IEEE 754 compliance

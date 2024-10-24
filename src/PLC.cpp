@@ -433,9 +433,26 @@ void PLCx::initialize(){
     edges[ei+1].fill_preEdge(v1,v2,ti);
     edges[ei+2].fill_preEdge(v2,v0,ti);
   }
-
   // merge duplicated pre-edges
   mergePreEdges(); // Now edges contains proper edges.
+
+  {
+    int k = edges.size();
+    edges.resize(k + input_ne);
+    // Fill EV and ET relations
+    for(uint32_t ei=0; ei<input_ne; ei++){
+      const uint32_t v0 = input_ev[2*ei];
+      const uint32_t v1 = input_ev[2*ei+1];
+      // dummy incident triangles
+      edges[k].fill_preEdge(v0,v1,-1);
+      // clear incident triangles
+      edges[k].inc_tri.clear();
+      k++;
+    }
+  }
+
+  // Not sure if this is necessary.
+  std::sort(edges.begin(), edges.end(), PLCedge::vertexSortFunc);
 
   // Mark flat edges and fill vv (only for non-flat edges)
   std::vector<std::vector<uint32_t>> vv; // vv relation relative to PLC
@@ -453,6 +470,7 @@ void PLCx::initialize(){
       vv[e.ep[1]].push_back(e.ep[0]);
       // Not a polyhedron if an edge has an odd number of incident triangles
       if (e.inc_tri.size() & 1) is_polyhedron = false;
+      if (e.inc_tri.size() == 0 ) is_polyhedron = false;
     }
   }
 
