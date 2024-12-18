@@ -372,7 +372,7 @@ void PLCx::mergePreEdges(){
   // sort edges by lexicografic non-descending endpoints
   std::sort(edges.begin(), edges.end(), PLCedge::vertexSortFunc);
 
-  for(uint32_t ei=0; ei < edges.size()-1; ){
+  if( edges.size() > 0 ) for(uint32_t ei=0; ei < edges.size()-1; ){
     PLCedge& e = edges[ei];
 
     while( ++ei < edges.size() && e.ep[0]==edges[ei].ep[0] && e.ep[1] == edges[ei].ep[1]){

@@ -325,7 +325,7 @@ void read_nodes_and_constraints(
 
     qsort((*tri_vertices_p), *ntri, sizeof(uint32_t) * 3, triOrder);
     uint32_t num_duplicates = 0;
-    for (uint32_t i = 0; i < *ntri - 1; i++) if (triOrder((*tri_vertices_p) + i * 3, (*tri_vertices_p) + (i + 1) * 3) == 0) {
+    if( *ntri > 0 ) for (uint32_t i = 0; i < *ntri - 1; i++) if (triOrder((*tri_vertices_p) + i * 3, (*tri_vertices_p) + (i + 1) * 3) == 0) {
         (*tri_vertices_p)[i * 3] = (*tri_vertices_p)[i * 3 + 1] = (*tri_vertices_p)[i * 3 + 2] = UINT32_MAX;
         num_duplicates++;
     }
@@ -371,7 +371,7 @@ public:
 
         if (verbose) printf("File read\n");
         if (npts == 0) ip_error("Input file has no vertices\n");
-        if (ntri == 0) ip_error("Input file has no triangles\n");
+        // if (ntri == 0) ip_error("Input file has no triangles\n");
 
         postProcess(vertex_p, npts, tri_vertices_p, ntri, edge_vertices_p, nedge, verbose);
 
@@ -424,7 +424,7 @@ public:
 
         if (verbose) printf("Valid input built\n");
         if (num_vertices == 0) ip_error("Input file has no valid vertices\n");
-        if (num_valid_tris == 0) ip_error("Input file has no valid triangles\n");
+        // if (num_valid_tris == 0) ip_error("Input file has no valid triangles\n");
 
         coordinates.resize(3 * num_vertices);
         for (uint32_t i = 0; i < num_vertices; i++) {

@@ -158,8 +158,8 @@ public:
   const size_t input_nv; // number of input vertices
   const uint32_t input_nt; // number of input triangles
   const uint32_t* input_tv; // input triangles (linearized vertex IDs)
-  const uint32_t input_ne; // number of input triangles
-  const uint32_t* input_ev; // input triangles (linearized vertex IDs)
+  const uint32_t input_ne; // number of input edges
+  const uint32_t* input_ev; // input edges (linearized vertex IDs)
 
   TetMesh& delmesh; // Delaunay tetrahedrization
   std::vector<PLCedge> edges; // edges of the PLC
