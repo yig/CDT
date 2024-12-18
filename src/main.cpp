@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
 #include "delaunay.h"
 #include "inputPLC.h"
 #include "PLC.h"
@@ -23,11 +24,11 @@ using namespace std;
 // f: try to make the output representable using floating point
 // w: log to screen
 
-TetMesh* createSteinerCDT(inputPLC& plc, const char *options) {
+TetMesh* createSteinerCDT(inputPLC& plc, const std::string& options, const std::string& bbox_expansion_fraction ) {
 	bool log = false, bbox = false, verbose = false, snap = false, logscreen = false;
 	//bool optimize = false;
 
-	for (int i = 0; i < strlen(options); i++) switch (options[i]) {
+	for (int i = 0; i < options.size(); i++) switch (options[i]) {
 	case 'l':
 		log = true; break;
 	case 'b':
@@ -42,7 +43,7 @@ TetMesh* createSteinerCDT(inputPLC& plc, const char *options) {
 	//	optimize = true; break;
 	} // Just ignore unknown options
 
-	if (bbox) plc.addBoundingBoxVertices();
+	if (bbox) plc.addBoundingBoxVertices( std::stod(bbox_expansion_fraction) );
 
 	if (logscreen) {
 		log = true;
@@ -179,7 +180,7 @@ int main(int argc, char* argv[])
 
 	if (argc < 2) {
 		std::cout << "CDT - Create a constrained Delaunay tetrahedrization out of a triangulated OFF file.\n";
-		std::cout << "USAGE: CDT [-lbvfqnrs] filename.off\n";
+		std::cout << "USAGE: CDT [-lbvfqnrs] [--bbox fraction] filename.off\n";
 		std::cout << "Example 1: CDT -bv test.off\n";
 		std::cout << "Example 2: CDT -b -v test.off\n";
 		std::cout << "OPTIONS:\n";
@@ -193,6 +194,7 @@ int main(int argc, char* argv[])
 		std::cout << "-m: use MEDIT format instead of TET\n";
 		std::cout << "-r: remove outer tetrahedra from output (if input is closed)\n";
 		std::cout << "-s: saves skin to an ASCII OFF file (triangles between IN and OUT)\n";
+		std::cout << "--bbox fraction: expands the bounding box by this fraction (default 0.05)\n";
 		std::cout << "OUTPUT:\n";
 		std::cout << "Output has same name (and path) as input with an extension appended.\n";
 		std::cout << "E.g. CDT my_dir/test.off produces my_dir/test.off.tet\n";
@@ -200,23 +202,34 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	char filename[2048] = "..\\Input_file\\bracket.off";
+	std::string filename = "..\\Input_file\\bracket.off";
 
-	std::string options = "";
+	std::string options;
+	std::string bbox_expansion_fraction = "0.05";
 
-	for (int i = 1; i < argc; i++)
-		if (argv[i][0] == '-') {
+	for (int i = 1; i < argc; i++) {
+		if( std::string(argv[i]) == "--bbox" ) {
+			// Eat the next argument as the bounding box expansion fraction
+			assert( i+1 < argc );
+			bbox_expansion_fraction = argv[i+1];
+			i += 1;
+		}
+		else if (argv[i][0] == '-') {
 			for (int j = 1; j < strlen(argv[i]); j++) options += argv[i][j];
 		}
-		else memcpy(filename, argv[i], strlen(argv[i])+1);
+		else
+		{
+			filename = argv[i];
+		}
+	}
 
 	// Load a valid PLC from file
 	inputPLC plc;
-	plc.initFromFile(filename, options.find('v') != std::string::npos);
+	plc.initFromFile(filename.c_str(), options.find('v') != std::string::npos);
 
-	TetMesh* tin = createSteinerCDT(plc, options.c_str());
+	TetMesh* tin = createSteinerCDT(plc, options, bbox_expansion_fraction);
 
-	if (saveOutputFile(*tin, filename, options.c_str()))
+	if (saveOutputFile(*tin, filename.c_str(), options.c_str()))
 		printf("Finished\n");
 
 	return 0;

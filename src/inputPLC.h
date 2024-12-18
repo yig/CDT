@@ -452,7 +452,7 @@ public:
     }
 
     // Add eight vertices to enclose the input in a box
-    void addBoundingBoxVertices() {
+    void addBoundingBoxVertices( double expansion_fraction ) {
         double bbmin[3] = { DBL_MAX, DBL_MAX, DBL_MAX };
         double bbmax[3] = { -DBL_MAX, -DBL_MAX, -DBL_MAX };
         for (uint32_t i = 0; i < numVertices(); i++) {
@@ -464,8 +464,8 @@ public:
         }
         const double bbox[3] = { bbmax[0] - bbmin[0], bbmax[1] - bbmin[1], bbmax[2] - bbmin[2] };
         for (int j = 0; j < 3; j++) {
-            bbmin[j] -= bbox[j] * 0.05;
-            bbmax[j] += bbox[j] * 0.05;
+            bbmin[j] -= bbox[j] * expansion_fraction;
+            bbmax[j] += bbox[j] * expansion_fraction;
         }
 
         const int idx[] = { 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1 };
